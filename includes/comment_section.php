@@ -46,7 +46,9 @@ function loadComments() {
 
     fetch('api/comments.php', { method: 'POST', body: fd })
     .then(r => r.json())
-    .then(data => {
+    .then(res => {
+        if(res.status !== 'success') return;
+        let data = res.data;
         let html = '';
         let count = 0;
         
@@ -56,7 +58,7 @@ function loadComments() {
             data.forEach(cmt => {
                 count++;
                 html += renderComment(cmt); // Render Cha
-                if(cmt.replies.length > 0) {
+                if(cmt.replies && cmt.replies.length > 0) {
                     html += '<div style="margin-left: 55px; border-left: 3px solid #f0f2f5; padding-left: 15px;">';
                     cmt.replies.forEach(reply => {
                         count++;

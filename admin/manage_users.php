@@ -1,206 +1,226 @@
 <?php
+// File: admin/manage_users.php
 session_start();
-require_once '../config/database.php';
-
-// Check quyền
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    die('<div class="container mt-5 alert alert-danger">Bạn không có quyền truy cập trang này!</div>');
-}
-
-// =================================================================
-// XỬ LÝ FORM
-// =================================================================
-$msg = "";
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $action = $_POST['action'] ?? '';
-
-    // A. THÊM
-    if ($action == 'add') {
-        $username = trim($_POST['username']);
-        $email = trim($_POST['email']);
-        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-        $role = $_POST['role'];
-
-        $check = $conn->query("SELECT id FROM users WHERE username='$username' OR email='$email'");
-        if ($check->num_rows > 0) {
-            $msg = "<div class='alert alert-danger'>Tên đăng nhập hoặc Email đã tồn tại!</div>";
-        } else {
-            $stmt = $conn->prepare("INSERT INTO users (username, email, password, role, status, created_at) VALUES (?, ?, ?, ?, 'active', NOW())");
-            $stmt->bind_param("ssss", $username, $email, $password, $role);
-            if ($stmt->execute()) $msg = "<div class='alert alert-success'>Thêm thành công!</div>";
-        }
-    }
-    // B. SỬA
-    elseif ($action == 'edit') {
-        $id = intval($_POST['user_id']);
-        $username = trim($_POST['username']);
-        $email = trim($_POST['email']);
-        $role = $_POST['role'];
-        
-        $sql_pass = "";
-        if (!empty($_POST['password'])) {
-            $new_pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
-            $sql_pass = ", password='$new_pass'";
-        }
-
-        $conn->query("UPDATE users SET username='$username', email='$email', role='$role' $sql_pass WHERE id=$id");
-        $msg = "<div class='alert alert-success'>Cập nhật thành công!</div>";
-    }
-    // C. KHÓA/MỞ
-    elseif ($action == 'toggle_ban') {
-        $id = intval($_POST['user_id']);
-        if ($id == $_SESSION['user_id']) {
-            $msg = "<div class='alert alert-warning'>Không thể tự khóa chính mình!</div>";
-        } else {
-            $new_status = ($_POST['current_status'] == 'active') ? 'banned' : 'active';
-            $conn->query("UPDATE users SET status='$new_status' WHERE id=$id");
-            $msg = "<div class='alert alert-success'>Đã thay đổi trạng thái!</div>";
-        }
-    }
-    // D. XÓA
-    elseif ($action == 'delete') {
-        $id = intval($_POST['user_id']);
-        if ($id == $_SESSION['user_id']) {
-            $msg = "<div class='alert alert-warning'>Không thể tự xóa chính mình!</div>";
-        } else {
-            $conn->query("DELETE FROM users WHERE id=$id");
-            $msg = "<div class='alert alert-success'>Đã xóa thành viên!</div>";
-        }
-    }
-}
-
-$result = $conn->query("SELECT * FROM users ORDER BY id DESC");
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit; }
+define('ADMIN_VIEW', true);
+$page_title = 'Quản lý Thành Viên';
+$active_menu = 'users';
+ob_start();
 ?>
 
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <title>Quản lý thành viên</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/admin_style.css">
-</head>
-<body>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold mb-0">👥 Quản lý Thành Viên</h2>
+    <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> Thêm Mới</button>
+</div>
 
-<div class="d-flex">
-    <div class="sidebar d-flex flex-column flex-shrink-0 p-3">
-        <a href="../index.php" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none border-bottom pb-3">
-            <span class="fs-4 fw-bold"><i class="fas fa-user-shield"></i> Admin Panel</span>
-        </a>
-        <ul class="nav nav-pills flex-column mb-auto mt-3">
-            <li><a href="index.php"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a></li>
-            <li><a href="novels.php"><i class="fas fa-book me-2"></i> Quản lý Truyện</a></li>
-            <li><a href="categories.php"><i class="fas fa-folder me-2"></i> Quản lý Thể loại</a></li>
-            <li><a href="manage_users.php" class="active"><i class="fas fa-users me-2"></i> Quản lý Thành viên</a></li>
-            <li><a href="manage_comments.php"><i class="fas fa-comments me-2"></i> Quản lý Bình luận</a></li>
-            <li><a href="notifications.php"><i class="fas fa-bullhorn me-2"></i> Gửi Thông Báo</a></li>
-            <li><a href="../index.php" class="mt-5 text-warning"><i class="fas fa-home me-2"></i> Về trang chủ</a></li>
-            <li><a href="../logout.php" class="text-danger"><i class="fas fa-sign-out-alt me-2"></i> Đăng xuất</a></li>
-        </ul>
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th style="width: 80px;">Avatar</th>
+                    <th>Thông tin</th>
+                    <th>Vai trò</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="user-list">
+                <tr><td colspan="6" class="text-center py-4"><span class="spinner-border text-primary"></span></td></tr>
+            </tbody>
+        </table>
     </div>
+</div>
 
-    <div class="container-fluid p-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="fw-bold text-dark">👤 Quản lý Thành Viên</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                <i class="fas fa-plus"></i> Thêm Mới
-            </button>
-        </div>
+<!-- Modal Sửa/Thêm User -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalLabel">Sửa User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <fieldset id="user-form">
+                    <input type="hidden" id="u_id" value="0">
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Username</label>
+                        <input type="text" class="form-control" id="u_username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Email</label>
+                        <input type="email" class="form-control" id="u_email" required>
+                    </div>
 
-        <?= $msg ?>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Password Mới (để trống nếu không đổi)</label>
+                        <input type="password" class="form-control bg-light" id="u_password" placeholder="********">
+                    </div>
 
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover table-bordered align-middle mb-0">
-                        <thead class="table-dark">
-                            <tr>
-                                <th width="50">ID</th>
-                                <th width="80" class="text-center">Avatar</th>
-                                <th>Thông tin</th>
-                                <th>Vai trò</th>
-                                <th>Trạng thái</th>
-                                <th width="150">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if ($result->num_rows > 0): ?>
-                                <?php while ($row = $result->fetch_assoc()): ?>
-                                    <?php 
-                                        $avatar = 'https://ui-avatars.com/api/?name='.$row['username'];
-                                        if (!empty($row['avatar'])) {
-                                            $avatar = (strpos($row['avatar'], 'http') === 0) ? $row['avatar'] : '../' . $row['avatar'];
-                                        }
-                                        
-                                        $role_badge = match($row['role']) { 'admin'=>'bg-danger', 'mod'=>'bg-warning text-dark', default=>'bg-secondary' };
-                                        $status_badge = ($row['status'] == 'active') ? 'bg-success' : 'bg-dark';
-                                    ?>
-                                    <tr>
-                                        <td><?= $row['id'] ?></td>
-                                        
-                                        <td class="text-center">
-                                            <a href="../profile.php?id=<?= $row['id'] ?>" target="_blank" title="Xem hồ sơ">
-                                                <img src="<?= $avatar ?>" class="rounded-circle avatar-img avatar-md">
-                                            </a>
-                                        </td>
-
-                                        <td>
-                                            <a href="../profile.php?id=<?= $row['id'] ?>" target="_blank" class="text-decoration-none text-dark fw-bold">
-                                                <?= htmlspecialchars($row['username']) ?>
-                                            </a>
-                                            <br>
-                                            <small class="text-muted"><?= htmlspecialchars($row['email']) ?></small>
-                                        </td>
-
-                                        <td><span class="badge <?= $role_badge ?>"><?= strtoupper($row['role']) ?></span></td>
-                                        <td><span class="badge <?= $status_badge ?>"><?= ucfirst($row['status']) ?></span></td>
-                                        <td>
-                                            <button class="btn btn-sm btn-info text-white" onclick='openEdit(<?= json_encode($row) ?>)' title="Sửa"><i class="fas fa-edit"></i></button>
-                                            
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Đổi trạng thái user này?');">
-                                                <input type="hidden" name="action" value="toggle_ban">
-                                                <input type="hidden" name="user_id" value="<?= $row['id'] ?>">
-                                                <input type="hidden" name="current_status" value="<?= $row['status'] ?>">
-                                                <button class="btn btn-sm <?= ($row['status']=='active')?'btn-dark':'btn-success' ?>" title="Khóa/Mở khóa">
-                                                    <?= ($row['status']=='active')?'<i class="fas fa-ban"></i>':'<i class="fas fa-unlock"></i>' ?>
-                                                </button>
-                                            </form>
-
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Xóa vĩnh viễn user này?');">
-                                                <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="user_id" value="<?= $row['id'] ?>">
-                                                <button class="btn btn-sm btn-danger" title="Xóa"><i class="fas fa-trash"></i></button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            <?php else: ?>
-                                <tr><td colspan="6" class="text-center">Chưa có thành viên nào.</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Role</label>
+                        <select class="form-select" id="u_role">
+                            <option value="user">User</option>
+                            <option value="mod">Mod</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary px-4" id="btn-save-user" onclick="saveUser()">Cập nhật</button>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="addUserModal" tabindex="-1"><div class="modal-dialog"><form method="POST" class="modal-content"><div class="modal-header"><h5 class="modal-title">Thêm User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="action" value="add"><div class="mb-3"><label>Username</label><input type="text" name="username" class="form-control" required></div><div class="mb-3"><label>Email</label><input type="email" name="email" class="form-control" required></div><div class="mb-3"><label>Password</label><input type="password" name="password" class="form-control" required></div><div class="mb-3"><label>Role</label><select name="role" class="form-select"><option value="user">User</option><option value="mod">Mod</option><option value="admin">Admin</option></select></div></div><div class="modal-footer"><button class="btn btn-primary">Lưu</button></div></form></div></div>
-
-<div class="modal fade" id="editUserModal" tabindex="-1"><div class="modal-dialog"><form method="POST" class="modal-content"><div class="modal-header"><h5 class="modal-title">Sửa User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="action" value="edit"><input type="hidden" name="user_id" id="edit_id"><div class="mb-3"><label>Username</label><input type="text" name="username" id="edit_username" class="form-control" required></div><div class="mb-3"><label>Email</label><input type="email" name="email" id="edit_email" class="form-control" required></div><div class="mb-3"><label>Password Mới (để trống nếu không đổi)</label><input type="password" name="password" class="form-control"></div><div class="mb-3"><label>Role</label><select name="role" id="edit_role" class="form-select"><option value="user">User</option><option value="mod">Mod</option><option value="admin">Admin</option></select></div></div><div class="modal-footer"><button class="btn btn-primary">Cập nhật</button></div></form></div></div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    function openEdit(user) {
-        document.getElementById('edit_id').value = user.id;
-        document.getElementById('edit_username').value = user.username;
-        document.getElementById('edit_email').value = user.email;
-        document.getElementById('edit_role').value = user.role;
-        new bootstrap.Modal(document.getElementById('editUserModal')).show();
+let userModal = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadUsers();
+});
+
+let allUsers = [];
+
+async function loadUsers() {
+    let res = await API.get('../api/admin.php?action=get_users');
+    if (res && res.status === 'success') {
+        allUsers = res.data;
+        let html = '';
+        allUsers.forEach(u => {
+            let roleBadge = u.role === 'admin' ? '<span class="badge bg-danger text-uppercase">Admin</span>' : (u.role === 'mod' ? '<span class="badge bg-warning text-dark text-uppercase">Mod</span>' : '<span class="badge bg-secondary text-uppercase">User</span>');
+            let statusBadge = u.status === 'banned' ? '<span class="badge bg-dark">Banned</span>' : '<span class="badge bg-success">Active</span>';
+            
+            // Build absolute URL for avatar if needed
+            let avt = u.avatar;
+            if(avt && !avt.startsWith('http')) avt = '../' + avt; 
+
+            html += `
+            <tr>
+                <td class="text-muted">${u.id}</td>
+                <td>
+                    <img src="${avt}" class="rounded-circle border" width="40" height="40" style="object-fit:cover;">
+                </td>
+                <td>
+                    <div class="fw-bold">${u.username}</div>
+                    <div class="text-muted small">${u.email}</div>
+                </td>
+                <td>${roleBadge}</td>
+                <td>${statusBadge}</td>
+                <td class="text-end">`;
+            
+            if (u.role !== 'admin' || u.id == <?php echo $_SESSION['user_id']; ?>) {
+                html += `<button class="btn btn-sm btn-info text-white me-1" onclick="populateEditModal(${u.id})" data-bs-toggle="modal" data-bs-target="#userModal" title="Sửa"><i class="fas fa-edit"></i></button>`;
+            } else {
+                html += `<button class="btn btn-sm btn-secondary me-1 disabled" title="Sửa"><i class="fas fa-edit"></i></button>`;
+            }
+
+            if (u.role !== 'admin') {
+                if (u.status === 'banned') {
+                    html += `<button class="btn btn-sm btn-success me-1" onclick="toggleStatus(${u.id}, 'active')" title="Mở khóa"><i class="fas fa-unlock"></i></button>`;
+                } else {
+                    html += `<button class="btn btn-sm btn-dark me-1" onclick="toggleStatus(${u.id}, 'banned')" title="Khóa"><i class="fas fa-ban"></i></button>`;
+                }
+                html += `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id}, '${u.username}')" title="Xóa"><i class="fas fa-trash"></i></button>`;
+            } else {
+                html += `<button class="btn btn-sm btn-secondary me-1 disabled"><i class="fas fa-ban"></i></button>`;
+                html += `<button class="btn btn-sm btn-secondary disabled"><i class="fas fa-trash"></i></button>`;
+            }
+            
+            html += `</td></tr>`;
+        });
+        document.getElementById('user-list').innerHTML = html || '<tr><td colspan="6" class="text-center">Chưa có dữ liệu</td></tr>';
+    } else {
+        if (res && res.message && (res.message.includes('Quyền') || res.message.includes('Admin'))) {
+            alert("Bạn không còn quyền truy cập trang này!");
+            window.location.href = 'index.php';
+        } else {
+            document.getElementById('user-list').innerHTML = `<br><span class="text-danger">${res ? res.message : 'Thiếu quyền'}</span>`;
+        }
     }
+}
+
+function openAddModal() {
+    alert('Tính năng Thêm Mới đang phát triển. Giờ bạn có thể dùng tính năng này bên ngoài.');
+}
+
+function populateEditModal(id) {
+    let u = allUsers.find(x => x.id == id);
+    if(!u) return;
+
+    document.getElementById('u_id').value = u.id;
+    document.getElementById('u_username').value = u.username;
+    document.getElementById('u_email').value = u.email;
+    document.getElementById('u_password').value = '';
+    document.getElementById('u_role').value = u.role;
+    
+    document.getElementById('userModalLabel').innerText = 'Sửa User';
+    
+    if (u.role === 'admin' && u.id != <?php echo $_SESSION['user_id']; ?>) {
+        document.getElementById('u_role').disabled = true;
+    } else {
+        document.getElementById('u_role').disabled = false;
+    }
+}
+
+async function saveUser() {
+    let btn = document.getElementById('btn-save-user');
+    let id = document.getElementById('u_id').value;
+    let username = document.getElementById('u_username').value;
+    let email = document.getElementById('u_email').value;
+    let pwd = document.getElementById('u_password').value;
+    let role = document.getElementById('u_role').value;
+
+    if(!username || !email) return alert('Thiếu thông tin');
+
+    btn.disabled = true;
+    let res = await API.post('../api/admin.php', {
+        action: 'edit_user',
+        id: id,
+        username: username,
+        email: email,
+        password: pwd,
+        role: role
+    });
+    btn.disabled = false;
+
+    if (res && res.status === 'success') {
+        alert(res.message || "Cập nhật thành công!");
+        let modalEl = document.getElementById('userModal');
+        let modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if(modalInstance) modalInstance.hide();
+        loadUsers();
+    } else {
+        alert(res ? res.message : "Lỗi server");
+    }
+}
+
+async function toggleStatus(id, newStatus) {
+    if(!confirm("Thay đổi trạng thái tài khoản này?")) return;
+    let res = await API.post('../api/admin.php', { action: 'toggle_user_status', id: id, status: newStatus });
+    if (res && res.status === 'success') {
+        loadUsers();
+    } else {
+        alert(res ? res.message : "Lỗi server");
+    }
+}
+
+async function deleteUser(id, username) {
+    if(!confirm(`BẠN CÓ CHẮC CHẮN MUỐN XÓA TÀI KHOẢN: ${username}?\nHành động này không thể hoàn tác!`)) return;
+    let res = await API.post('../api/admin.php', { action: 'delete_user_account', id: id });
+    if (res && res.status === 'success') {
+        loadUsers();
+    } else {
+        alert(res ? res.message : "Lỗi server");
+    }
+}
 </script>
 
-</body>
-</html>
+<?php
+$page_content = ob_get_clean();
+require_once 'includes/layout.php';
+?>

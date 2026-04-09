@@ -105,13 +105,17 @@ switch ($action) {
                         echo json_encode(['status' => 'error', 'message' => 'banned']);
                         exit;
                     } else {
-                        // Thỏa mãn, trả về info để render avatar / name
+                        // Thỏa mãn, đồng bộ lại quyền nếu có sự thay đổi (từ user lên mod)
+                        if ($_SESSION['role'] !== $u_data['role']) {
+                            $_SESSION['role'] = $u_data['role'];
+                        }
+                        
                         echo json_encode([
                             'status' => 'success', 
                             'data' => [
                                 'user_id' => $_SESSION['user_id'],
                                 'username' => $_SESSION['username'],
-                                'role' => $u_data['role'],
+                                'role' => $_SESSION['role'],
                                 'avatar' => $u_data['avatar']
                             ]
                         ]);
