@@ -1,7 +1,7 @@
 <?php
 // File: api/admin.php
 require_once '../config/database.php';
-require_once '../includes/functions.php'; // For createSlug if available, else we can inline it.
+require_once '../app/views/includes/functions.php'; // For createSlug if available, else we can inline it.
 
 header("Content-Type: application/json; charset=UTF-8");
 
