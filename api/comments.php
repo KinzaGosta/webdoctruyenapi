@@ -53,6 +53,24 @@ switch ($action) {
         $stmt->bind_param("iisss", $user_id, $novel_id, $comic_slug, $content, $parent_id);
         
         if ($stmt->execute()) {
+            // -- NOTIFICATION LOGIC --
+            if ($parent_id > 0) {
+                $p_res = $conn->query("SELECT user_id FROM comments WHERE id = $parent_id");
+                if ($p_res && $p_res->num_rows > 0) {
+                    $owner_id = $p_res->fetch_assoc()['user_id'];
+                    if ($owner_id != $user_id) {
+                        $replier_name = $_SESSION['username'] ?? 'Một người dùng';
+                        $ntitle = "Trả lời bình luận mới";
+                        $nmsg = "$replier_name vừa trả lời bình luận của bạn.";
+                        $nurl = ($type == 'novel') ? "index.php?route=novel/detail&id=$novel_id" : "index.php?route=comic/detail&slug=$comic_slug";
+                        
+                        $nstmt = $conn->prepare("INSERT INTO notifications (sender_id, receiver_id, type, target_url, title, message) VALUES (?, ?, 'reply', ?, ?, ?)");
+                        $nstmt->bind_param("iisss", $user_id, $owner_id, $nurl, $ntitle, $nmsg);
+                        $nstmt->execute();
+                    }
+                }
+            }
+            // ------------------------
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Lỗi DB: ' . $conn->error]);

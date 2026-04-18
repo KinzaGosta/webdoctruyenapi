@@ -10,7 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 function requireLogin() {
     // 1. Kiểm tra session cơ bản
     if (!isset($_SESSION['user_id'])) {
-        header("Location: /WebDocTruyen/login.php");
+        header("Location: index.php?route=auth/login");
         exit;
     }
 
@@ -43,7 +43,7 @@ function requireLogin() {
         // Trường hợp User ID trong session không tồn tại trong DB (VD: Admin xóa user đó rồi)
         session_unset();
         session_destroy();
-        header("Location: /WebDocTruyen/login.php");
+        header("Location: index.php?route=auth/login");
         exit;
     }
 }

@@ -41,17 +41,18 @@ async function loadTopViews() {
         resComic.data.forEach((row, index) => {
             let rank = index + 1;
             let displayView = Number(row.view_count).toLocaleString('vi-VN');
+            let comicLink = `index.php?route=comic/detail&slug=${row.slug}`;
             htmlComic += `
                 <div class="d-flex align-items-center mb-3 pb-2 border-bottom position-relative item-rank">
                     <div class="rank-number rank-${rank}">${rank}</div>
                     
-                    <a href="comic_detail.php?slug=${row.slug}" class="me-3 position-relative">
+                    <a href="${comicLink}" class="me-3 position-relative">
                         <img src="${row.thumb_url}" class="rounded shadow-sm border" style="width: 50px; height: 70px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/50x70?text=No+Img'">
                     </a>
                     
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1 text-truncate">
-                            <a href="comic_detail.php?slug=${row.slug}" class="text-dark text-decoration-none fw-bold" title="${row.name}">
+                            <a href="${comicLink}" class="text-dark text-decoration-none fw-bold" title="${row.name}">
                                 ${row.name}
                             </a>
                         </h6>
@@ -75,17 +76,18 @@ async function loadTopViews() {
         resNovel.data.forEach((row, index) => {
             let rank = index + 1;
             let displayView = Number(row.views).toLocaleString('vi-VN');
+            let novelLink = `index.php?route=novel/detail&id=${row.id}`;
             htmlNovel += `
                 <div class="d-flex align-items-center mb-3 pb-2 border-bottom position-relative item-rank">
                     <div class="rank-number rank-${rank}">${rank}</div>
                     
-                    <a href="novel_detail.php?id=${row.id}" class="me-3">
+                    <a href="${novelLink}" class="me-3">
                         <img src="${row.cover_image}" class="rounded shadow-sm border" style="width: 50px; height: 70px; object-fit: cover;" onerror="this.src='assets/images/no-image.jpg'">
                     </a>
                     
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1 text-truncate">
-                            <a href="novel_detail.php?id=${row.id}" class="text-dark text-decoration-none fw-bold" title="${row.title}">
+                            <a href="${novelLink}" class="text-dark text-decoration-none fw-bold" title="${row.title}">
                                 ${row.title}
                             </a>
                         </h6>

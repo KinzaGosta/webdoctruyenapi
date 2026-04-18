@@ -124,31 +124,39 @@ $res_comments = $conn->query($sql_cmt);
                         <img src="<?= $user['avatar'] ? $user['avatar'] : 'https://ui-avatars.com/api/?name='.$user['username'] ?>" 
                              class="rounded-circle shadow profile-avatar" id="avatar-preview">
                         
-                        <?php if ($is_owner): ?>
-                            <label for="avatar-input" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 shadow-sm profile-upload-btn" title="Đổi ảnh">
-                                <i class="fas fa-camera"></i>
-                            </label>
-                        <?php endif; ?>
-                    </div>
-
                     <?php if ($is_owner): ?>
-                        <form method="POST" enctype="multipart/form-data" id="avatar-form">
-                            <input type="file" name="avatar_file" id="avatar-input" class="d-none" accept="image/*" onchange="document.getElementById('avatar-form').submit()">
-                        </form>
-                        <div class="mb-3">
-                            <button class="btn btn-sm btn-link text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#urlInput">
-                                <i class="fas fa-link"></i> Dùng link ảnh
-                            </button>
-                            <div class="collapse mt-2" id="urlInput">
-                                <form method="POST">
-                                    <div class="input-group input-group-sm">
-                                        <input type="text" name="avatar_url" class="form-control" placeholder="https://..." required>
-                                        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i></button>
-                                    </div>
-                                </form>
-                            </div>
+                        <label for="avatar-input" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 shadow-sm profile-upload-btn" title="Đổi ảnh">
+                            <i class="fas fa-camera"></i>
+                        </label>
+                    <?php endif; ?>
+                </div>
+
+                <?php if ($is_owner): ?>
+                    <form method="POST" enctype="multipart/form-data" id="avatar-form">
+                        <input type="file" name="avatar_file" id="avatar-input" class="d-none" accept="image/*" onchange="document.getElementById('avatar-form').submit()">
+                    </form>
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-link text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#urlInput">
+                            <i class="fas fa-link"></i> Dùng link ảnh
+                        </button>
+                        <div class="collapse mt-2" id="urlInput">
+                            <form method="POST">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="avatar_url" class="form-control" placeholder="https://..." required>
+                                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i></button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <?php if (isset($_SESSION['user_id'])): ?>
+                        <div class="mt-2 mb-3">
+                            <a href="index.php?route=chat/index&uid=<?= $profile_id ?>" class="btn btn-primary w-100 fw-bold">
+                                <i class="fas fa-comment-dots"></i> Nhắn tin
+                            </a>
                         </div>
                     <?php endif; ?>
+                <?php endif; ?>
                     
                     <h4 class="fw-bold mb-1"><?= htmlspecialchars($user['username']) ?></h4>
                     <p class="text-muted small mb-2"><?= htmlspecialchars($user['email']) ?></p>

@@ -62,6 +62,7 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
                 <li><span class="dropdown-item text-muted">Đang tải...</span></li>
             </ul>
         </li>
+        <li class="nav-item"><a class="nav-link fw-bold text-success" href="index.php?route=forum/index"><i class="fas fa-comments"></i> Diễn Đàn</a></li>
       </ul>
       
       <div class="d-flex position-relative me-3 my-2 my-lg-0" style="min-width: 300px;">
@@ -83,6 +84,13 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
                 <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#reportModal" title="Báo lỗi">
                     <i class="fas fa-bug"></i>
                 </button>
+            </li>
+
+            <li class="nav-item me-2">
+                <a class="nav-link position-relative" href="index.php?route=chat/index" title="Tin nhắn">
+                    <i class="fas fa-comment-dots text-primary"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="chat-global-unread" style="display:none; font-size: 10px;">0</span>
+                </a>
             </li>
 
             <li class="nav-item dropdown me-3">
@@ -177,10 +185,14 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
         // 3. Khởi tạo Live Search
         initLiveSearch();
 
-        // 4. Notifications
+        // 4. Notifications & Chat Unread
         <?php if(isset($_SESSION['user_id'])): ?>
             loadNotifications();
-            setInterval(loadNotifications, 15000); // Check mỗi 15s
+            loadChatUnread();
+            setInterval(() => {
+                loadNotifications();
+                loadChatUnread();
+            }, 15000); // Check mỗi 15s
         <?php endif; ?>
     });
 
@@ -285,13 +297,16 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
             } else {
                 res.data.notifications.forEach(n => {
                     let bgClass = n.is_read == 0 ? 'notif-unread' : 'notif-read';
-                    let iconType = n.type == 'report' ? '<i class="fas fa-exclamation-circle text-danger"></i>' : '<i class="fas fa-info-circle text-primary"></i>';
+                    let iconType = '<i class="fas fa-info-circle text-primary"></i>';
+                    if (n.type == 'report') iconType = '<i class="fas fa-exclamation-circle text-danger"></i>';
+                    else if (n.type == 'reply') iconType = '<i class="fas fa-reply text-success"></i>';
+                    else if (n.type == 'system' && n.sender_id == 0) iconType = '<i class="fas fa-book-open text-warning"></i>';
                     
                     html += `
                         <li class="dropdown-item p-2 border-bottom ${bgClass} position-relative" style="white-space: normal;">
                             <div class="d-flex align-items-start">
                                 <img src="${n.sender_avatar}" class="rounded-circle me-2 border" width="40" height="40" style="object-fit:cover; min-width:40px;">
-                                <div class="flex-grow-1 pe-2" onclick="markRead(${n.id})" style="cursor:pointer">
+                                <div class="flex-grow-1 pe-2" onclick="markReadAndGo(${n.id}, '${n.target_url || ''}')" style="cursor:pointer">
                                     <div class="small text-dark mb-1 fw-bold">${iconType} ${n.title}</div>
                                     <div class="text-muted small text-truncate" style="max-width: 200px; font-size: 0.85rem;">${n.message}</div>
                                     <div class="text-secondary mt-1" style="font-size: 10px;"><i class="far fa-clock"></i> ${n.time_ago} • ${n.sender_name}</div>
@@ -308,9 +323,13 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
         }
     }
 
-    async function markRead(id) {
+    async function markReadAndGo(id, target_url) {
         await API.post('api/user.php', { action: 'notif_mark_read', id: id });
-        loadNotifications();
+        if(target_url && target_url !== 'null' && target_url.length > 0) {
+            window.location.href = target_url;
+        } else {
+            loadNotifications();
+        }
     }
 
     async function deleteNotif(id, event) {
@@ -333,5 +352,21 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
     async function logout() {
         await API.post('api/auth.php', { action: 'logout' });
         window.location.href = 'index.php';
+    }
+    async function loadChatUnread() {
+        try {
+            let res = await API.get('api/chat.php?action=get_unread_total');
+            if(res && res.status === 'success') {
+                let badge = document.getElementById('chat-global-unread');
+                if(badge) {
+                    if(res.unread_total > 0) {
+                        badge.innerText = res.unread_total;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            }
+        } catch(e) {}
     }
 </script>

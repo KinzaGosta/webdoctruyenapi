@@ -31,7 +31,7 @@ function fetch_from_otruyen($url) {
 
 switch ($action) {
     case 'home':
-        $data = fetch_from_otruyen('https://otruyenapi.com/v1/api/home');
+        $data = fetch_from_otruyen('https://otruyenapi.com/v1/api/danh-sach/dang-phat-hanh');
         if ($data) {
             echo json_encode(['status' => 'success', 'data' => $data]);
         } else {
@@ -55,7 +55,8 @@ switch ($action) {
 
     case 'list':
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-        $data = fetch_from_otruyen("https://otruyenapi.com/v1/api/danh-sach/truyen-moi?page=$page");
+        // Load danh sách truyện đang phát hành (để đảm bảo có chương đọc được, truyện-moi có thể là truyện sắp ra mắt chưa có chương)
+        $data = fetch_from_otruyen("https://otruyenapi.com/v1/api/danh-sach/dang-phat-hanh?page=$page");
         if ($data) {
             echo json_encode(['status' => 'success', 'data' => $data]);
         } else {

@@ -243,6 +243,27 @@ switch ($action) {
         
         if ($stmt->execute()) {
             $conn->query("UPDATE novels SET updated_at = NOW() WHERE id = $novel_id");
+
+            // --- Send Notifications to Followers ---
+            $f_res = $conn->query("SELECT user_id FROM novel_favorites WHERE novel_id = $novel_id");
+            if ($f_res && $f_res->num_rows > 0) {
+                // Get novel title for notification
+                $n_res = $conn->query("SELECT title FROM novels WHERE id = $novel_id");
+                $novel_title = $n_res->fetch_assoc()['title'] ?? 'Truyện';
+                
+                $notif_title = "Chương mới ra lò!";
+                $notif_msg = "Truyện '$novel_title' vừa cập nhật $title";
+                $nurl = "index.php?route=novel/detail&id=$novel_id";
+                
+                $notif_stmt = $conn->prepare("INSERT INTO notifications (sender_id, receiver_id, type, target_url, title, message) VALUES (0, ?, 'system', ?, ?, ?)");
+                while ($row = $f_res->fetch_assoc()) {
+                    $rid = $row['user_id'];
+                    $notif_stmt->bind_param("isss", $rid, $nurl, $notif_title, $notif_msg);
+                    $notif_stmt->execute();
+                }
+            }
+            // ---------------------------------------
+
             responseJson('success', [], 'Thêm chương mới thành công');
         } else {
             responseJson('error', [], 'Lỗi hệ thống');

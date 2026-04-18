@@ -36,6 +36,7 @@
             <li><a href="index.php?route=admin/dashboard" class="nav-link mb-2 <?php if($active_menu=='dashboard') echo 'active'; ?>"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a></li>
             <li><a href="index.php?route=admin/novels" class="nav-link mb-2 <?php if($active_menu=='novels') echo 'active'; ?>"><i class="fas fa-book me-2"></i> Quản lý Truyện</a></li>
             <li><a href="index.php?route=admin/categories" class="nav-link mb-2 <?php if($active_menu=='categories') echo 'active'; ?>"><i class="fas fa-folder me-2"></i> Quản lý Thể loại</a></li>
+            <li><a href="index.php?route=admin/forum" class="nav-link mb-2 <?php if($active_menu=='forum') echo 'active'; ?>"><i class="fas fa-comments me-2"></i> Quản lý Diễn đàn</a></li>
             
             <?php if (($_SESSION['role'] ?? '') === 'admin'): ?>
                 <li><a href="index.php?route=admin/users" class="nav-link mb-2 <?php if($active_menu=='users') echo 'active'; ?>"><i class="fas fa-users me-2"></i> Quản lý Thành viên</a></li>

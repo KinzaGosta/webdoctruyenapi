@@ -47,7 +47,7 @@
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-success px-4" id="btn-submit">Lưu Truyện <i class="fas fa-spinner fa-spin d-none" id="add-spinner"></i></button>
-                <a href="novels.php" class="btn btn-secondary">Hủy</a>
+                <a href="index.php?route=admin/novels" class="btn btn-secondary">Hủy</a>
             </div>
         </form>
     </div>

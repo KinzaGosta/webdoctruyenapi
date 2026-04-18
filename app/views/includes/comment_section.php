@@ -9,7 +9,7 @@
                 <?php 
                 $my_avt = !empty($_SESSION['avatar']) ? $_SESSION['avatar'] : 'https://ui-avatars.com/api/?name='.$_SESSION['username'].'&background=random'; 
                 ?>
-                <a href="profile.php?id=<?= $_SESSION['user_id'] ?>">
+                <a href="index.php?route=profile/index&id=<?= $_SESSION['user_id'] ?>">
                     <img src="<?= $my_avt ?>" class="rounded-circle me-3 border" width="40" height="40" style="object-fit:cover;">
                 </a>
                 
@@ -20,7 +20,7 @@
             </div>
         <?php else: ?>
             <div class="alert alert-secondary text-center">
-                Vui lòng <a href="login.php" class="fw-bold">Đăng nhập</a> để bình luận.
+                Vui lòng <a href="index.php?route=auth/login" class="fw-bold">Đăng nhập</a> để bình luận.
             </div>
         <?php endif; ?>
 
@@ -55,17 +55,23 @@ function loadComments() {
         if (data.length === 0) {
             html = '<p class="text-center text-muted py-3">Chưa có bình luận nào. Hãy là người đầu tiên!</p>';
         } else {
+            function renderTree(cmt, level) {
+                let out = renderComment(cmt);
+                if(cmt.replies && cmt.replies.length > 0) {
+                    let marginLeft = level === 0 ? '55px' : '20px';
+                    out += `<div style="margin-left: ${marginLeft}; border-left: 3px solid #f0f2f5; padding-left: 15px;">`;
+                    cmt.replies.forEach(r => {
+                        count++;
+                        out += renderTree(r, level + 1);
+                    });
+                    out += `</div>`;
+                }
+                return out;
+            }
+
             data.forEach(cmt => {
                 count++;
-                html += renderComment(cmt); // Render Cha
-                if(cmt.replies && cmt.replies.length > 0) {
-                    html += '<div style="margin-left: 55px; border-left: 3px solid #f0f2f5; padding-left: 15px;">';
-                    cmt.replies.forEach(reply => {
-                        count++;
-                        html += renderComment(reply); // Render Con
-                    });
-                    html += '</div>';
-                }
+                html += renderTree(cmt, 0);
             });
         }
         document.getElementById('comment-list').innerHTML = html;
@@ -102,14 +108,14 @@ function renderComment(cmt) {
 
     return `
         <div class="d-flex mb-3 fade-in" id="comment-row-${cmt.id}">
-            <a href="profile.php?id=${cmt.user_id}">
+            <a href="index.php?route=profile/index&id=${cmt.user_id}">
                 <img src="${cmt.avatar}" class="rounded-circle me-3 border" width="40" height="40" style="object-fit:cover;">
             </a>
             
             <div class="flex-grow-1">
                 <div class="bg-light p-3 rounded-3" style="background-color: #f0f2f5 !important;">
                     
-                    <a href="profile.php?id=${cmt.user_id}" class="text-decoration-none text-dark fw-bold d-block mb-1">
+                    <a href="index.php?route=profile/index&id=${cmt.user_id}" class="text-decoration-none text-dark fw-bold d-block mb-1">
                         ${cmt.username}
                     </a>
                     

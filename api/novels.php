@@ -1,5 +1,6 @@
 <?php
 // File: api/novels.php
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
 require_once '../config/database.php';
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -134,11 +135,20 @@ switch ($action) {
             $chapters[] = $c;
         }
         
+        $is_favorited = false;
+        if (isset($_SESSION['user_id'])) {
+            $fav_check = $conn->query("SELECT * FROM novel_favorites WHERE user_id = {$_SESSION['user_id']} AND novel_id = $id");
+            if ($fav_check && $fav_check->num_rows > 0) {
+                $is_favorited = true;
+            }
+        }
+        
         echo json_encode([
             'status' => 'success', 
             'data' => [
                 'novel' => $novel,
-                'chapters' => $chapters
+                'chapters' => $chapters,
+                'is_favorited' => $is_favorited
             ]
         ]);
         break;
@@ -183,15 +193,14 @@ switch ($action) {
             $u_id = $_SESSION['user_id'];
             $item_name = $chapter['novel_title'];
             $chap_name = $chapter['title'];
-            $item_url = "novel_detail.php?id=" . $novel_id;
-            $chap_url = "novel_read.php?id=" . $chap_id;
+            $chap_url = "index.php?route=novel/read&id=" . $chap_id;
             $img = $chapter['cover_image'] ? $chapter['cover_image'] : 'assets/images/no-image.jpg';
 
-            $hist = $conn->query("SELECT id FROM reading_history WHERE user_id=$u_id AND item_type='novel' AND item_url='$item_url'");
-            if ($hist->num_rows > 0) {
-                $conn->query("UPDATE reading_history SET chapter_name='$chap_name', chapter_url='$chap_url', updated_at=NOW() WHERE user_id=$u_id AND item_type='novel' AND item_url='$item_url'");
+            $hist = $conn->query("SELECT id FROM reading_history WHERE user_id=$u_id AND type='novel' AND item_id=$novel_id");
+            if ($hist && $hist->num_rows > 0) {
+                $conn->query("UPDATE reading_history SET chapter_name='$chap_name', chapter_url='$chap_url', updated_at=NOW() WHERE user_id=$u_id AND type='novel' AND item_id=$novel_id");
             } else {
-                $conn->query("INSERT INTO reading_history (user_id, item_type, item_name, item_url, chapter_name, chapter_url, item_image) VALUES ($u_id, 'novel', '$item_name', '$item_url', '$chap_name', '$chap_url', '$img')");
+                $conn->query("INSERT INTO reading_history (user_id, type, item_id, item_name, item_image, chapter_name, chapter_url) VALUES ($u_id, 'novel', $novel_id, '$item_name', '$img', '$chap_name', '$chap_url')");
             }
         }
 

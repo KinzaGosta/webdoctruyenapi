@@ -85,17 +85,17 @@ async function loadListComics(page) {
                 if (totalPages > 1) {
                     let pHTML = '';
                     let range = 2;
-                    pHTML += `<li class="page-item ${page <= 1 ? 'disabled' : ''}"><a class="page-link" href="?page=${page - 1}"><i class="fas fa-chevron-left"></i></a></li>`;
+                    pHTML += `<li class="page-item ${page <= 1 ? 'disabled' : ''}"><a class="page-link" href="?route=comic/list&page=${page - 1}"><i class="fas fa-chevron-left"></i></a></li>`;
                     
                     for (let i = 1; i <= totalPages; i++) {
                         if (i == 1 || i == totalPages || (i >= page - range && i <= page + range)) {
-                            pHTML += `<li class="page-item ${i == page ? 'active' : ''}"><a class="page-link" href="?page=${i}">${i}</a></li>`;
+                            pHTML += `<li class="page-item ${i == page ? 'active' : ''}"><a class="page-link" href="?route=comic/list&page=${i}">${i}</a></li>`;
                         } else if (i == page - range - 1 || i == page + range + 1) {
                             pHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
                         }
                     }
                     
-                    pHTML += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}"><a class="page-link" href="?page=${page + 1}"><i class="fas fa-chevron-right"></i></a></li>`;
+                    pHTML += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}"><a class="page-link" href="?route=comic/list&page=${page + 1}"><i class="fas fa-chevron-right"></i></a></li>`;
                     
                     pagList.innerHTML = pHTML;
                     pagBox.style.display = 'block';
