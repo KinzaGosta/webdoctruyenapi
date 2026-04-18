@@ -8,18 +8,20 @@ class ChatModel extends Model {
         // Sắp xếp theo người có tin nhắn gần nhất và đếm số tin nhắn chưa đọc
         $sql = "SELECT u.id, u.username, u.avatar, 
                     (SELECT message FROM chat_messages c2 
-                     WHERE (c2.sender_id = ? AND c2.receiver_id = u.id) OR (c2.sender_id = u.id AND c2.receiver_id = ?) 
+                     WHERE ((c2.sender_id = ? AND c2.receiver_id = u.id) OR (c2.sender_id = u.id AND c2.receiver_id = ?))
+                     AND c2.is_deleted = 0
                      ORDER BY c2.id DESC LIMIT 1) as last_message,
                     (SELECT created_at FROM chat_messages c2 
-                     WHERE (c2.sender_id = ? AND c2.receiver_id = u.id) OR (c2.sender_id = u.id AND c2.receiver_id = ?) 
+                     WHERE ((c2.sender_id = ? AND c2.receiver_id = u.id) OR (c2.sender_id = u.id AND c2.receiver_id = ?))
+                     AND c2.is_deleted = 0
                      ORDER BY c2.id DESC LIMIT 1) as last_time,
                     (SELECT COUNT(*) FROM chat_messages c2 
-                     WHERE c2.sender_id = u.id AND c2.receiver_id = ? AND c2.is_read = 0) as unread_count
+                     WHERE c2.sender_id = u.id AND c2.receiver_id = ? AND c2.is_read = 0 AND c2.is_deleted = 0) as unread_count
                 FROM users u
                 WHERE u.id IN (
-                    SELECT DISTINCT sender_id FROM chat_messages WHERE receiver_id = ?
+                    SELECT DISTINCT sender_id FROM chat_messages WHERE receiver_id = ? AND is_deleted = 0
                     UNION
-                    SELECT DISTINCT receiver_id FROM chat_messages WHERE sender_id = ?
+                    SELECT DISTINCT receiver_id FROM chat_messages WHERE sender_id = ? AND is_deleted = 0
                 )
                 ORDER BY last_time DESC";
 
@@ -39,8 +41,9 @@ class ChatModel extends Model {
 
     public function getMessages($user1, $user2) {
         $sql = "SELECT * FROM chat_messages 
-                WHERE (sender_id = ? AND receiver_id = ?) 
-                   OR (sender_id = ? AND receiver_id = ?)
+                WHERE ((sender_id = ? AND receiver_id = ?) 
+                   OR (sender_id = ? AND receiver_id = ?))
+                   AND is_deleted = 0
                 ORDER BY created_at ASC";
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("iiii", $user1, $user2, $user2, $user1);
@@ -73,7 +76,7 @@ class ChatModel extends Model {
         $sql = "SELECT c.*, u.username, u.avatar 
                 FROM chat_messages c
                 JOIN users u ON c.sender_id = u.id
-                WHERE c.receiver_id = ? AND c.id > ?
+                WHERE c.receiver_id = ? AND c.id > ? AND c.is_deleted = 0
                 ORDER BY c.id ASC";
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("ii", $user_id, $last_id);
@@ -90,7 +93,7 @@ class ChatModel extends Model {
     }
 
     public function getTotalUnread($user_id) {
-        $sql = "SELECT COUNT(*) as total FROM chat_messages WHERE receiver_id = ? AND is_read = 0";
+        $sql = "SELECT COUNT(*) as total FROM chat_messages WHERE receiver_id = ? AND is_read = 0 AND is_deleted = 0";
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
@@ -113,6 +116,13 @@ class ChatModel extends Model {
             }
         }
         return $users;
+    }
+
+    public function deleteMessage($message_id, $user_id) {
+        // Chỉ người gửi mới được xóa tin nhắn của mình
+        $stmt = $this->conn->prepare("UPDATE chat_messages SET is_deleted = 1 WHERE id = ? AND sender_id = ?");
+        $stmt->bind_param("ii", $message_id, $user_id);
+        return $stmt->execute();
     }
 }
 ?>

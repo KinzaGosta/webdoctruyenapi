@@ -588,6 +588,7 @@ CREATE TABLE IF NOT EXISTS `chat_messages` (
   `receiver_id` int(11) NOT NULL,
   `message` text NOT NULL,
   `is_read` tinyint(1) DEFAULT 0,
+  `is_deleted` tinyint(1) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   FOREIGN KEY (`sender_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`receiver_id`) REFERENCES `users`(`id`) ON DELETE CASCADE

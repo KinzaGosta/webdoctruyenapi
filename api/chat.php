@@ -86,6 +86,17 @@ switch ($action) {
         }
         break;
 
+    case 'delete_message':
+        $message_id = intval($_POST['message_id'] ?? 0);
+        if ($message_id > 0) {
+            if ($chatModel->deleteMessage($message_id, $user_id)) {
+                echo json_encode(['status' => 'success']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Không thể xóa tin nhắn']);
+            }
+        }
+        break;
+
     default:
         echo json_encode(['status' => 'error', 'message' => 'Hành động không hợp lệ']);
         break;

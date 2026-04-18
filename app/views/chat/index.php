@@ -15,6 +15,9 @@
 .msg-out { background: #0084ff; color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
 .msg-in { background: #e4e6eb; color: #000; align-self: flex-start; border-bottom-left-radius: 2px; }
 .msg-row { display: flex; flex-direction: column; margin-bottom: 10px; }
+.btn-delete-msg { color: #ccc; transition: color 0.2s; visibility: hidden; }
+.msg-row:hover .btn-delete-msg { visibility: visible; }
+.btn-delete-msg:hover { color: #dc3545 !important; }
 .unread-badge { display: inline-block; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 11px; margin-left: auto; }
 </style>
 
@@ -161,8 +164,13 @@ async function loadMessages(uid) {
                 lastMsgId = Math.max(lastMsgId, msg.id);
                 if (msg.sender_id == myUserId) {
                     html += `
-                        <div class="msg-row">
-                            <div class="msg-bubble msg-out">${msg.message}</div>
+                        <div class="msg-row" id="msg-${msg.id}">
+                            <div class="d-flex align-items-center justify-content-end">
+                                <button class="btn btn-link btn-delete-msg p-0 me-2 text-decoration-none" onclick="deleteChatMessage(${msg.id})" title="Xóa tin nhắn">
+                                    <i class="fas fa-trash-alt" style="font-size: 0.8rem;"></i>
+                                </button>
+                                <div class="msg-bubble msg-out mb-0">${msg.message}</div>
+                            </div>
                         </div>`;
                 } else {
                     html += `
@@ -229,7 +237,7 @@ setInterval(async () => {
                         if(box.innerHTML.includes('Chưa có tin nhắn nào')) box.innerHTML = '';
                         
                         box.innerHTML += `
-                            <div class="msg-row">
+                            <div class="msg-row" id="msg-${msg.id}">
                                 <div class="msg-bubble msg-in">${msg.message}</div>
                             </div>`;
                         box.scrollTop = box.scrollHeight;
@@ -293,6 +301,25 @@ function startNewChat(uid, uname, uavatar) {
     document.getElementById('userSearchResults').style.display = 'none';
     currentChatUserId = uid;
     openChat(uid, uname, uavatar);
+}
+
+async function deleteChatMessage(id) {
+    if (!confirm('Xóa tin nhắn này ở phía bạn?')) return;
+    
+    let fd = new FormData();
+    fd.append('action', 'delete_message');
+    fd.append('message_id', id);
+
+    try {
+        let res = await fetch('api/chat.php', { method: 'POST', body: fd });
+        let json = await res.json();
+        if (json.status === 'success') {
+            let el = document.getElementById(`msg-${id}`);
+            if (el) el.remove();
+        } else {
+            alert(json.message);
+        }
+    } catch (e) {}
 }
 
 // Chạy lần đầu
