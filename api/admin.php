@@ -321,6 +321,35 @@ switch ($action) {
         responseJson('success', [], 'Đã đổi mật khẩu');
         break;
         
+    case 'add_user':
+        adminOnly($is_admin);
+        $username = trim($_POST['username'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $role = trim($_POST['role'] ?? 'user');
+        $pwd = trim($_POST['password'] ?? '');
+
+        if (!$username || !$email || !$pwd) responseJson('error', [], 'Thiếu thông tin bắt buộc');
+        
+        // Check if username or email exists
+        $check = $conn->prepare("SELECT id FROM users WHERE username=? OR email=?");
+        $check->bind_param("ss", $username, $email);
+        $check->execute();
+        $res_check = $check->get_result();
+        if ($res_check && $res_check->num_rows > 0) {
+            responseJson('error', [], 'Username hoặc Email đã được sử dụng');
+        }
+
+        $hashed = password_hash($pwd, PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("INSERT INTO users (username, email, role, password) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $username, $email, $role, $hashed);
+        
+        if ($stmt->execute()) {
+            responseJson('success', [], 'Thêm người dùng mới thành công');
+        } else {
+            responseJson('error', [], 'Lỗi hệ thống khi thêm user');
+        }
+        break;
+
     case 'edit_user':
         adminOnly($is_admin);
         $id = intval($_POST['id'] ?? 0);
