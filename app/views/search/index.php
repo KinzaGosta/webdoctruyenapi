@@ -8,21 +8,20 @@
             <i class="fas fa-search me-2 text-secondary"></i>Kết quả tìm kiếm: 
             <span class="text-primary">"<?= htmlspecialchars($keyword) ?>"</span>
         </h4>
-        <small class="text-muted">Tìm thấy tổng cộng <strong><?= ($db_results->num_rows + count($api_results)) ?></strong> kết quả.</small>
+        <small class="text-muted">Tìm thấy tổng cộng <strong><?= (count($db_results) + count($api_results)) ?></strong> kết quả.</small>
     </div>
 
     <div class="mb-5">
         <div class="category-header">
             <h3>
                 <i class="fas fa-pen-nib text-success me-2"></i>Truyện Chữ 
-                <span class="badge bg-secondary fs-6 align-middle ms-2"><?= $db_results->num_rows ?></span>
+                <span class="badge bg-secondary fs-6 align-middle ms-2"><?= count($db_results) ?></span>
             </h3>
         </div>
 
-        <?php if ($db_results->num_rows > 0): ?>
+        <?php if (!empty($db_results)): ?>
             <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
-                <?php while ($novel = $db_results->fetch_assoc()): 
-                    // Xử lý ảnh (Fallback nếu ảnh lỗi)
+                <?php foreach ($db_results as $novel):
                     $cover = !empty($novel['cover_image']) ? $novel['cover_image'] : 'https://via.placeholder.com/300x400?text=No+Image';
                 ?>
                     <div class="col">
@@ -43,7 +42,7 @@
                             </div>
                         </div>
                     </div>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             </div>
         <?php else: ?>
             <div class="alert alert-light text-center border border-dashed">
@@ -63,8 +62,8 @@
         <?php if (!empty($api_results)): ?>
             <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
                 <?php foreach ($api_results as $comic): 
-                    // Xử lý ảnh từ API
-                    $thumb = $img_domain . $comic['thumb_url'];
+                    // ComicModel->searchComics() đã trả về 'thumb' cả domain rồi
+                    $thumb = $comic['thumb'];
                 ?>
                     <div class="col">
                         <div class="book-card">

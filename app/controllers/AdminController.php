@@ -145,5 +145,17 @@ class AdminController extends Controller {
             'active_menu' => 'notifications'
         ]);
     }
+
+    public function forum() {
+        require_once 'app/models/ForumModel.php';
+        $forumModel = new ForumModel();
+        $topics = $forumModel->getAllTopicsForAdmin();
+
+        $this->render('admin/forum', [
+            'page_title' => 'Quản lý Diễn đàn',
+            'active_menu' => 'forum',
+            'topics'     => $topics
+        ]);
+    }
 }
 ?>

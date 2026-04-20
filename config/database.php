@@ -18,4 +18,3 @@ try {
 } catch (Exception $e) {
     die("<h3>Lỗi kết nối Database!</h3>Chi tiết: " . $e->getMessage());
 }
-?>

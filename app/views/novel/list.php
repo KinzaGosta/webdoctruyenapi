@@ -80,18 +80,18 @@ async function loadListNovels(page) {
                 let totalP = res.pagination.total_pages;
                 let curP = res.pagination.page;
                 
-                pHTML += `<li class="page-item ${curP <= 1 ? 'disabled' : ''}"><a class="page-link" href="?page=${curP - 1}"><i class="fas fa-chevron-left"></i></a></li>`;
+                pHTML += `<li class="page-item ${curP <= 1 ? 'disabled' : ''}"><a class="page-link" href="?route=novel/list&page=${curP - 1}"><i class="fas fa-chevron-left"></i></a></li>`;
                 
                 let range = 2;
                 for (let i = 1; i <= totalP; i++) {
                     if (i == 1 || i == totalP || (i >= curP - range && i <= curP + range)) {
-                        pHTML += `<li class="page-item ${i == curP ? 'active' : ''}"><a class="page-link" href="?page=${i}">${i}</a></li>`;
+                        pHTML += `<li class="page-item ${i == curP ? 'active' : ''}"><a class="page-link" href="?route=novel/list&page=${i}">${i}</a></li>`;
                     } else if (i == curP - range - 1 || i == curP + range + 1) {
                         pHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
                     }
                 }
                 
-                pHTML += `<li class="page-item ${curP >= totalP ? 'disabled' : ''}"><a class="page-link" href="?page=${curP + 1}"><i class="fas fa-chevron-right"></i></a></li>`;
+                pHTML += `<li class="page-item ${curP >= totalP ? 'disabled' : ''}"><a class="page-link" href="?route=novel/list&page=${curP + 1}"><i class="fas fa-chevron-right"></i></a></li>`;
                 
                 pagList.innerHTML = pHTML;
                 pagBox.style.display = 'block';

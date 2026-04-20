@@ -112,8 +112,12 @@ async function loadNovelDetail() {
         }
 
         <?php if(isset($_SESSION['user_id'])): ?>
-            // Tạm thời chưa check api fav real-time, ta sẽ append button
-            btnHtml += `<button id="btn-favorite" class="btn btn-lg btn-outline-warning text-dark shadow-sm" onclick="toggleFavorite()"><i class="far fa-heart"></i> Theo Dõi</button>`;
+            let isFav = res.data.is_favorited;
+            if(isFav) {
+                btnHtml += `<button id="btn-favorite" class="btn btn-lg btn-warning text-white shadow-sm" onclick="toggleFavorite()"><i class="fas fa-heart"></i> Đã Theo Dõi</button>`;
+            } else {
+                btnHtml += `<button id="btn-favorite" class="btn btn-lg btn-outline-warning text-dark shadow-sm" onclick="toggleFavorite()"><i class="far fa-heart"></i> Theo Dõi</button>`;
+            }
         <?php else: ?>
             btnHtml += `<a href="index.php?route=auth/login" class="btn btn-outline-warning text-dark btn-lg shadow-sm"><i class="far fa-heart"></i> Đăng nhập để lưu</a>`;
         <?php endif; ?>

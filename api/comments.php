@@ -6,7 +6,7 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 header('Content-Type: application/json; charset=utf-8');
 
-require_once '../config/database.php';
+require_once '../app/models/CommentModel.php';
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 
 $action = $_POST['action'] ?? (isset($_GET['action']) ? $_GET['action'] : '');
@@ -29,6 +29,8 @@ function time_elapsed_string($datetime, $full = false) {
     }
 }
 
+$commentModel = new CommentModel();
+
 switch ($action) {
     case 'add':
         if (!isset($_SESSION['user_id'])) {
@@ -46,16 +48,10 @@ switch ($action) {
             exit;
         }
 
-        $novel_id = ($type == 'novel') ? intval($obj_id) : NULL;
-        $comic_slug = ($type == 'comic') ? $obj_id : NULL;
-
-        $stmt = $conn->prepare("INSERT INTO comments (user_id, novel_id, comic_slug, content, parent_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        $stmt->bind_param("iisss", $user_id, $novel_id, $comic_slug, $content, $parent_id);
-        
-        if ($stmt->execute()) {
+        if ($commentModel->addComment($user_id, $type, $obj_id, $content, $parent_id)) {
             echo json_encode(['status' => 'success']);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Lỗi DB: ' . $conn->error]);
+            echo json_encode(['status' => 'error', 'message' => 'Lỗi DB khi thêm bình luận']);
         }
         break;
 
@@ -64,25 +60,12 @@ switch ($action) {
         $obj_id = $_POST['obj_id'] ?? (isset($_GET['obj_id']) ? $_GET['obj_id'] : 0);
         $user_current = $_SESSION['user_id'] ?? 0;
 
-        $where = ($type == 'novel') ? "c.novel_id = " . intval($obj_id) : "c.comic_slug = '" . $conn->real_escape_string($obj_id) . "'";
-
-        $sql = "SELECT c.*, u.username, u.avatar, 
-                (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = $user_current) as is_liked
-                FROM comments c 
-                LEFT JOIN users u ON c.user_id = u.id 
-                WHERE $where 
-                ORDER BY c.created_at DESC";
+        $comments_raw = $commentModel->getCommentsList($type, $obj_id, $user_current);
         
-        $result = $conn->query($sql);
         $comments = [];
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $name = $row['username'] ? $row['username'] : 'User';
-                $row['avatar'] = $row['avatar'] ? $row['avatar'] : 'https://ui-avatars.com/api/?name='.$name.'&background=random';
-                $row['time_ago'] = time_elapsed_string($row['created_at']);
-                $row['is_mine'] = ($row['user_id'] == $user_current) ? true : false;
-                $comments[] = $row;
-            }
+        foreach ($comments_raw as $row) {
+            $row['time_ago'] = time_elapsed_string($row['created_at']);
+            $comments[] = $row;
         }
 
         $tree = [];
@@ -105,51 +88,44 @@ switch ($action) {
 
     case 'delete':
         if (!isset($_SESSION['user_id'])) { echo json_encode(['status' => 'error', 'message' => 'Chưa đăng nhập']); exit; }
-        $cmt_id = intval($_POST['cmt_id']);
+        $cmt_id = intval($_POST['cmt_id'] ?? 0);
         $user_id = $_SESSION['user_id'];
+        $role = $_SESSION['role'] ?? 'user';
 
-        $check = $conn->query("SELECT id FROM comments WHERE id = $cmt_id AND user_id = $user_id");
-        if ($check->num_rows == 0) {
-            echo json_encode(['status' => 'error', 'message' => 'Bạn không có quyền xóa']); exit;
+        if ($commentModel->deleteComment($cmt_id, $user_id, $role)) {
+            echo json_encode(['status' => 'success']);
+        } else { 
+            echo json_encode(['status' => 'error', 'message' => 'Bạn không có quyền xóa hoặc Lỗi DB']); 
         }
-
-        $stmt = $conn->prepare("DELETE FROM comments WHERE id = ?");
-        $stmt->bind_param("i", $cmt_id);
-        if ($stmt->execute()) { echo json_encode(['status' => 'success']); } 
-        else { echo json_encode(['status' => 'error', 'message' => 'Lỗi SQL']); }
         break;
 
     case 'edit':
         if (!isset($_SESSION['user_id'])) { echo json_encode(['status' => 'error', 'message' => 'Chưa đăng nhập']); exit; }
-        $cmt_id = intval($_POST['cmt_id']);
-        $content = trim(htmlspecialchars($_POST['content']));
+        $cmt_id = intval($_POST['cmt_id'] ?? 0);
+        $content = trim(htmlspecialchars($_POST['content'] ?? ''));
         $user_id = $_SESSION['user_id'];
+        $role = $_SESSION['role'] ?? 'user';
 
         if (empty($content)) { echo json_encode(['status' => 'error', 'message' => 'Nội dung trống']); exit; }
 
-        $check = $conn->query("SELECT id FROM comments WHERE id = $cmt_id AND user_id = $user_id");
-        if ($check->num_rows == 0) { echo json_encode(['status' => 'error', 'message' => 'Không có quyền sửa']); exit; }
-
-        $stmt = $conn->prepare("UPDATE comments SET content = ? WHERE id = ?");
-        $stmt->bind_param("si", $content, $cmt_id);
-        if ($stmt->execute()) { echo json_encode(['status' => 'success']); } 
-        else { echo json_encode(['status' => 'error', 'message' => 'Lỗi SQL']); }
+        if ($commentModel->editComment($cmt_id, $user_id, $content, $role)) {
+            echo json_encode(['status' => 'success']);
+        } else {
+             echo json_encode(['status' => 'error', 'message' => 'Không có quyền sửa hoặc Lỗi DB']); 
+        }
         break;
 
     case 'like':
         if (!isset($_SESSION['user_id'])) { echo json_encode(['status'=>'error']); exit; }
         $uid = $_SESSION['user_id'];
-        $cmt_id = intval($_POST['cmt_id']);
+        $cmt_id = intval($_POST['cmt_id'] ?? 0);
 
-        $check = $conn->query("SELECT * FROM comment_likes WHERE user_id=$uid AND comment_id=$cmt_id");
-        if ($check && $check->num_rows > 0) {
-            $conn->query("DELETE FROM comment_likes WHERE user_id=$uid AND comment_id=$cmt_id");
-            $conn->query("UPDATE comments SET like_count = like_count - 1 WHERE id=$cmt_id");
+        if ($cmt_id > 0) {
+            $commentModel->toggleLike($cmt_id, $uid);
+            echo json_encode(['status' => 'success']);
         } else {
-            $conn->query("INSERT INTO comment_likes (user_id, comment_id) VALUES ($uid, $cmt_id)");
-            $conn->query("UPDATE comments SET like_count = like_count + 1 WHERE id=$cmt_id");
+            echo json_encode(['status' => 'error']);
         }
-        echo json_encode(['status' => 'success']);
         break;
 
     default:
