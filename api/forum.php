@@ -71,18 +71,12 @@ switch ($action) {
     case 'delete_post':
         $post_id = intval($_POST['post_id'] ?? 0);
         if ($post_id > 0) {
-            $check = $conn->query("SELECT user_id FROM forum_posts WHERE id = $post_id");
-            if ($check && $check->num_rows > 0) {
-                $owner = $check->fetch_assoc()['user_id'];
-                if ($user_role === 'admin' || $user_role === 'mod' || $user_id == $owner) {
-                    if ($forumModel->deletePost($post_id)) {
-                        echo json_encode(['status' => 'success']);
-                        exit;
-                    }
-                } else {
-                    echo json_encode(['status' => 'error', 'message' => 'Không có quyền']);
-                    exit;
-                }
+            if ($forumModel->deletePost($post_id, $user_id, $user_role)) {
+                echo json_encode(['status' => 'success']);
+                exit;
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Không có quyền xóa hoặc Lỗi DB']);
+                exit;
             }
         }
         echo json_encode(['status' => 'error', 'message' => 'Không thể xóa']);
@@ -92,20 +86,12 @@ switch ($action) {
         $post_id = intval($_POST['post_id'] ?? 0);
         $content = trim(htmlspecialchars($_POST['content'] ?? ''));
         if ($post_id > 0 && !empty($content)) {
-            $check = $conn->query("SELECT user_id FROM forum_posts WHERE id = $post_id");
-            if ($check && $check->num_rows > 0) {
-                $owner = $check->fetch_assoc()['user_id'];
-                if ($user_role === 'admin' || $user_role === 'mod' || $user_id == $owner) {
-                    $stmt = $conn->prepare("UPDATE forum_posts SET content = ? WHERE id = ?");
-                    $stmt->bind_param("si", $content, $post_id);
-                    if ($stmt->execute()) {
-                        echo json_encode(['status' => 'success']);
-                        exit;
-                    }
-                } else {
-                    echo json_encode(['status' => 'error', 'message' => 'Không có quyền']);
-                    exit;
-                }
+            if ($forumModel->editPost($post_id, $content, $user_id, $user_role)) {
+                echo json_encode(['status' => 'success']);
+                exit;
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Không có quyền cập nhật hoặc Lỗi DB']);
+                exit;
             }
         }
         echo json_encode(['status' => 'error', 'message' => 'Lỗi cập nhật']);
@@ -118,17 +104,11 @@ switch ($action) {
         }
         $post_id = intval($_POST['post_id'] ?? 0);
         if ($post_id > 0) {
-            $check = $conn->query("SELECT * FROM forum_post_likes WHERE user_id=$user_id AND post_id=$post_id");
-            if ($check && $check->num_rows > 0) {
-                // Đã like -> Unlike
-                $conn->query("DELETE FROM forum_post_likes WHERE user_id=$user_id AND post_id=$post_id");
-                $conn->query("UPDATE forum_posts SET like_count = like_count - 1 WHERE id=$post_id");
+            if ($forumModel->toggleLikePost($post_id, $user_id)) {
+                echo json_encode(['status' => 'success']);
             } else {
-                // Chưa like -> Like
-                $conn->query("INSERT INTO forum_post_likes (user_id, post_id) VALUES ($user_id, $post_id)");
-                $conn->query("UPDATE forum_posts SET like_count = like_count + 1 WHERE id=$post_id");
+                echo json_encode(['status' => 'error', 'message' => 'Lỗi']);
             }
-            echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Lỗi']);
         }

@@ -137,10 +137,44 @@ class ForumModel extends Model {
         return $stmt->execute();
     }
 
-    public function deletePost($id) {
-        $stmt = $this->conn->prepare("DELETE FROM forum_posts WHERE id = ?");
-        $stmt->bind_param("i", $id);
-        return $stmt->execute();
+    public function deletePost($id, $user_id, $user_role = 'user') {
+        $check = $this->conn->query("SELECT user_id FROM forum_posts WHERE id = $id");
+        if ($check && $check->num_rows > 0) {
+            $owner = $check->fetch_assoc()['user_id'];
+            if ($user_role === 'admin' || $user_role === 'mod' || $user_id == $owner) {
+                $stmt = $this->conn->prepare("DELETE FROM forum_posts WHERE id = ?");
+                $stmt->bind_param("i", $id);
+                return $stmt->execute();
+            }
+        }
+        return false;
+    }
+
+    public function editPost($post_id, $content, $user_id, $user_role = 'user') {
+        $check = $this->conn->query("SELECT user_id FROM forum_posts WHERE id = $post_id");
+        if ($check && $check->num_rows > 0) {
+            $owner = $check->fetch_assoc()['user_id'];
+            if ($user_role === 'admin' || $user_role === 'mod' || $user_id == $owner) {
+                $stmt = $this->conn->prepare("UPDATE forum_posts SET content = ? WHERE id = ?");
+                $stmt->bind_param("si", $content, $post_id);
+                return $stmt->execute();
+            }
+        }
+        return false;
+    }
+
+    public function toggleLikePost($post_id, $user_id) {
+        $check = $this->conn->query("SELECT * FROM forum_post_likes WHERE user_id=$user_id AND post_id=$post_id");
+        if ($check && $check->num_rows > 0) {
+            // Đã like -> Unlike
+            $this->conn->query("DELETE FROM forum_post_likes WHERE user_id=$user_id AND post_id=$post_id");
+            $this->conn->query("UPDATE forum_posts SET like_count = like_count - 1 WHERE id=$post_id");
+        } else {
+            // Chưa like -> Like
+            $this->conn->query("INSERT INTO forum_post_likes (user_id, post_id) VALUES ($user_id, $post_id)");
+            $this->conn->query("UPDATE forum_posts SET like_count = like_count + 1 WHERE id=$post_id");
+        }
+        return true;
     }
 
     public function notifyReply($topic_id, $replier_id, $replier_name) {

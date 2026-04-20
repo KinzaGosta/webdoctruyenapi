@@ -1,5 +1,5 @@
 <?php
-require_once 'app/models/Model.php';
+require_once __DIR__ . '/Model.php';
 
 class NovelModel extends Model {
     public function getHomeNovels() {
@@ -49,6 +49,44 @@ class NovelModel extends Model {
         ];
     }
 
+    public function getByCategory($slug, $page, $limit) {
+        $offset = ($page - 1) * $limit;
+        
+        $cat_stmt = $this->conn->prepare("SELECT id, name FROM categories WHERE slug = ?");
+        $cat_stmt->bind_param("s", $slug);
+        $cat_stmt->execute();
+        $cat_res = $cat_stmt->get_result();
+
+        if ($cat_res->num_rows == 0) return false;
+        
+        $cat = $cat_res->fetch_assoc();
+        $cat_id = $cat['id'];
+
+        $count_sql = "SELECT COUNT(*) as total FROM novels WHERE category_id = $cat_id";
+        $total_records = $this->conn->query($count_sql)->fetch_assoc()['total'];
+        $total_pages = ceil($total_records / $limit);
+
+        $sql = "SELECT * FROM novels WHERE category_id = $cat_id ORDER BY updated_at DESC LIMIT $offset, $limit";
+        $result = $this->conn->query($sql);
+        
+        $data = [];
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                $data[] = $row;
+            }
+        }
+        
+        return [
+            'category_name' => $cat['name'],
+            'data' => $data,
+            'pagination' => [
+                'page' => $page,
+                'total_pages' => $total_pages,
+                'total_records' => $total_records
+            ]
+        ];
+    }
+
     public function getDetail($id) {
         $id = intval($id);
         $stmt = $this->conn->prepare("SELECT * FROM novels WHERE id = ?");
@@ -59,15 +97,20 @@ class NovelModel extends Model {
         if ($novel) {
             // Increase views
             $this->conn->query("UPDATE novels SET views = views + 1 WHERE id = $id");
+            $novel['views']++;
             
-            // Get favorite count
-            $fav_res = $this->conn->query("SELECT COUNT(*) as total FROM novel_favorites WHERE novel_id = $id");
-            $novel['favorite_count'] = $fav_res->fetch_assoc()['total'];
+            $fav_check = false;
+            if (isset($_SESSION['user_id'])) {
+                $uid = $_SESSION['user_id'];
+                $fav_res = $this->conn->query("SELECT * FROM novel_favorites WHERE user_id = $uid AND novel_id = $id");
+                if ($fav_res && $fav_res->num_rows > 0) $fav_check = true;
+            }
 
             $chapters = $this->getChapters($id);
             return [
                 'novel' => $novel,
-                'chapters' => $chapters
+                'chapters' => $chapters,
+                'is_favorited' => $fav_check
             ];
         }
         return false;
@@ -113,6 +156,53 @@ class NovelModel extends Model {
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("issssss", $uid, $type, $novel_id, $novel_title, $novel_cover, $chap_title, $current_url);
         $stmt->execute();
+    }
+    public function searchNovels($keyword, $limit = 5) {
+        $sql = "SELECT id, title, cover_image, author FROM novels WHERE title LIKE ? LIMIT ?";
+        $likeKey = "%" . $keyword . "%";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("si", $likeKey, $limit);
+        $stmt->execute();
+        $db_result = $stmt->get_result();
+
+        $novel_list = [];
+        if ($db_result->num_rows > 0) {
+            while ($row = $db_result->fetch_assoc()) {
+                $novel_list[] = [
+                    'id' => $row['id'],
+                    'title' => $row['title'],
+                    'cover_image' => $row['cover_image'] ? $row['cover_image'] : 'assets/images/no-image.jpg',
+                    'author' => $row['author']
+                ];
+            }
+        }
+        return $novel_list;
+    }
+    public function getCategories() {
+        $check_table = $this->conn->query("SHOW TABLES LIKE 'categories'");
+        if ($check_table && $check_table->num_rows > 0) {
+            $cats = $this->conn->query("SELECT * FROM categories ORDER BY name ASC");
+            $data = [];
+            if ($cats) {
+                while ($row = $cats->fetch_assoc()) {
+                    $data[] = $row;
+                }
+            }
+            return $data;
+        }
+        return [];
+    }
+
+    public function getTopViews($limit = 5) {
+        $result = $this->conn->query("SELECT * FROM novels ORDER BY views DESC LIMIT $limit");
+        $data = [];
+        if ($result && $result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                $row['cover_image'] = $row['cover_image'] ? $row['cover_image'] : 'assets/images/no-image.jpg';
+                $data[] = $row;
+            }
+        }
+        return $data;
     }
 }
 ?>
