@@ -108,5 +108,27 @@ class ComicModel extends Model {
         }
         return $data;
     }
+    public function getCategoryComics($slug) {
+        $api_url = "https://otruyenapi.com/v1/api/the-loai/" . $slug;
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $api_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        $comics = [];
+        $cat_name = $slug;
+
+        if ($response) {
+            $data = json_decode($response, true);
+            if (isset($data['data']['items'])) {
+                $comics = $data['data']['items'];
+                $cat_name = $data['data']['titlePage'] ?? $slug;
+            }
+        }
+        return ['comics' => $comics, 'cat_name' => $cat_name];
+    }
 }
 ?>

@@ -190,5 +190,90 @@ class UserModel extends Model {
         $stmt->bind_param("i", $user_id);
         return $stmt->execute();
     }
+    // --- PROFILE ---
+
+    public function getProfileById($id) {
+        $stmt = $this->conn->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        return $stmt->get_result()->fetch_assoc();
+    }
+
+    public function updateProfileInfo($uid, $username, $email) {
+        $check = $this->conn->prepare("SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?");
+        $check->bind_param("ssi", $username, $email, $uid);
+        $check->execute();
+        if ($check->get_result()->num_rows > 0) {
+            return ['status' => 'error', 'message' => 'Tên hoặc Email đã tồn tại!'];
+        }
+        $stmt = $this->conn->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $username, $email, $uid);
+        if ($stmt->execute()) {
+            return ['status' => 'success', 'message' => 'Cập nhật thành công!'];
+        }
+        return ['status' => 'error', 'message' => 'Lỗi cập nhật!'];
+    }
+
+    public function updateAvatar($uid, $avatarPath) {
+        $stmt = $this->conn->prepare("UPDATE users SET avatar = ? WHERE id = ?");
+        $stmt->bind_param("si", $avatarPath, $uid);
+        return $stmt->execute();
+    }
+
+    public function changePassword($uid, $currentPassword, $newPassword, $currentHash) {
+        if (!password_verify($currentPassword, $currentHash)) {
+            return ['status' => 'error', 'message' => 'Mật khẩu cũ sai!'];
+        }
+        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+        $stmt = $this->conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+        $stmt->bind_param("si", $hash, $uid);
+        if ($stmt->execute()) {
+            return ['status' => 'success', 'message' => 'Đổi mật khẩu thành công!'];
+        }
+        return ['status' => 'error', 'message' => 'Lỗi đổi mật khẩu!'];
+    }
+
+    public function getFavoriteNovels($uid) {
+        $stmt = $this->conn->prepare("SELECT n.id, n.title, n.cover_image FROM novel_favorites f JOIN novels n ON f.novel_id = n.id WHERE f.user_id = ? ORDER BY f.created_at DESC");
+        $stmt->bind_param("i", $uid);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = [];
+        while ($row = $res->fetch_assoc()) { $data[] = $row; }
+        return $data;
+    }
+
+    public function getFavoriteComics($uid) {
+        $stmt = $this->conn->prepare("SELECT comic_slug, comic_name, comic_thumb FROM comic_favorites WHERE user_id = ? ORDER BY created_at DESC");
+        $stmt->bind_param("i", $uid);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = [];
+        while ($row = $res->fetch_assoc()) { $data[] = $row; }
+        return $data;
+    }
+
+    public function getProfileHistory($uid, $limit = 12) {
+        // Check table exists first
+        $check = $this->conn->query("SHOW TABLES LIKE 'reading_history'");
+        if (!$check || $check->num_rows === 0) return [];
+        $stmt = $this->conn->prepare("SELECT * FROM reading_history WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?");
+        $stmt->bind_param("ii", $uid, $limit);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = [];
+        while ($row = $res->fetch_assoc()) { $data[] = $row; }
+        return $data;
+    }
+
+    public function getProfileComments($uid, $limit = 10) {
+        $stmt = $this->conn->prepare("SELECT c.*, n.title as novel_title FROM comments c LEFT JOIN novels n ON c.novel_id = n.id WHERE c.user_id = ? ORDER BY c.created_at DESC LIMIT ?");
+        $stmt->bind_param("ii", $uid, $limit);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = [];
+        while ($row = $res->fetch_assoc()) { $data[] = $row; }
+        return $data;
+    }
 }
 ?>

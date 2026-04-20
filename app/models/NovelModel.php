@@ -52,6 +52,7 @@ class NovelModel extends Model {
     public function getByCategory($slug, $page, $limit) {
         $offset = ($page - 1) * $limit;
         
+        // 1. Lấy ID và tên của category theo slug
         $cat_stmt = $this->conn->prepare("SELECT id, name FROM categories WHERE slug = ?");
         $cat_stmt->bind_param("s", $slug);
         $cat_stmt->execute();
@@ -62,27 +63,31 @@ class NovelModel extends Model {
         $cat = $cat_res->fetch_assoc();
         $cat_id = $cat['id'];
 
-        $count_sql = "SELECT COUNT(*) as total FROM novels WHERE category_id = $cat_id";
-        $total_records = $this->conn->query($count_sql)->fetch_assoc()['total'];
+        // 2. Đếm tổng số truyện qua bảng trung gian novel_categories
+        $count_stmt = $this->conn->prepare("SELECT COUNT(*) as total FROM novels n JOIN novel_categories nc ON n.id = nc.novel_id WHERE nc.category_id = ?");
+        $count_stmt->bind_param("i", $cat_id);
+        $count_stmt->execute();
+        $total_records = $count_stmt->get_result()->fetch_assoc()['total'];
         $total_pages = ceil($total_records / $limit);
 
-        $sql = "SELECT * FROM novels WHERE category_id = $cat_id ORDER BY updated_at DESC LIMIT $offset, $limit";
-        $result = $this->conn->query($sql);
+        // 3. Lấy danh sách truyện
+        $stmt = $this->conn->prepare("SELECT n.* FROM novels n JOIN novel_categories nc ON n.id = nc.novel_id WHERE nc.category_id = ? ORDER BY n.updated_at DESC LIMIT ?, ?");
+        $stmt->bind_param("iii", $cat_id, $offset, $limit);
+        $stmt->execute();
+        $result = $stmt->get_result();
         
         $data = [];
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $data[] = $row;
-            }
+        while ($row = $result->fetch_assoc()) {
+            $data[] = $row;
         }
         
         return [
             'category_name' => $cat['name'],
-            'data' => $data,
-            'pagination' => [
-                'page' => $page,
-                'total_pages' => $total_pages,
-                'total_records' => $total_records
+            'data'          => $data,
+            'pagination'    => [
+                'page'         => $page,
+                'total_pages'  => $total_pages,
+                'total_records'=> $total_records
             ]
         ];
     }

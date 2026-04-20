@@ -192,5 +192,19 @@ class ForumModel extends Model {
             $nstmt->execute();
         }
     }
+
+    public function getAllTopicsForAdmin() {
+        $sql = "SELECT t.*, u.username, c.name as category_name 
+                FROM forum_topics t 
+                JOIN users u ON t.user_id = u.id 
+                JOIN forum_categories c ON t.category_id = c.id 
+                ORDER BY t.created_at DESC";
+        $result = $this->conn->query($sql);
+        $topics = [];
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) { $topics[] = $row; }
+        }
+        return $topics;
+    }
 }
 ?>
